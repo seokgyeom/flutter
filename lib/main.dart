@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'screens/login_screen.dart'; // 로그인 화면 파일 연결
-import 'screens/quiz_screen.dart';  // ⚡ 방금 만든 퀴즈 화면 파일 연결!
+import 'screens/home_screen.dart';  // 1번째 탭: 진짜 통계 홈 화면 연결
+import 'screens/login_screen.dart'; // 2번째 탭: 로그인 화면 연결
+import 'screens/quiz_screen.dart';  // 3번째 탭: 코드 조립 퀴즈 화면 연결
+import 'screens/creator_screen.dart'; // ⚡ 4번째 탭: 문제 출제 화면 연결 완료!
 
 void main() {
   runApp(const CodeLingoApp());
@@ -59,7 +61,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   }
 
   void _onItemTapped(int index) {
-    // 🔒 보안 라우트 가드: 로그인하지 않은 상태에서 4번째 탭(index 3)을 누르면 차단
+    // 🔒 보안 라우트 가드: 로그인하지 않은 상태에서 4번째 탭(문제출제)을 누르면 차단
     if (index == 3 && !_isLoggedIn) {
       _showSecurityAlert();
       return;
@@ -97,12 +99,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   Widget build(BuildContext context) {
     final bool isDesktop = MediaQuery.of(context).size.width >= 768;
 
-    // 🔄 탭 전환 시 렌더링될 화면 매핑 교체 완료!
+    // 🔄 모든 화면들을 제자리에 빌드 매핑 완료!
     final List<Widget> screens = [
-      const Center(child: Text('홈 화면 (구현 준비중)', style: TextStyle(fontFamily: 'Inter', color: Colors.white, fontSize: 18))),
+      const HomeScreen(), 
       LoginScreen(onLoginSuccess: _onLoginSuccess, isLoggedIn: _isLoggedIn),
-      const QuizScreen(), // ⚡ 3번째 자리에 임시 텍스트 대신 진짜 퀴즈 화면 도킹!
-      const Center(child: Text('새로운 코딩 문제 출제 (보안 권한 승인됨)', style: TextStyle(fontFamily: 'Inter', color: Colors.white, fontSize: 18))),
+      const QuizScreen(), 
+      const CreatorScreen(), // ⚡ 네 번째 칸에 임시 텍스트 대신 진짜 출제 화면 위젯 도킹!
     ];
 
     return Scaffold(
@@ -125,7 +127,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           ],
         ),
         actions: [
-          // 보안 상태 시각화 자물쇠 아이콘
+          // 우측 상단 세션 마스터 제어 자물쇠 스위치
           IconButton(
             icon: Icon(_isLoggedIn ? Icons.lock_open_rounded : Icons.lock_rounded),
             color: _isLoggedIn ? const Color(0xFF6FFF92) : const Color(0xFFFFB4AB),

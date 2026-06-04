@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
-import 'screens/home_screen.dart';  // 1번째 탭: 진짜 통계 홈 화면 연결
-import 'screens/login_screen.dart'; // 2번째 탭: 로그인 화면 연결
-import 'screens/quiz_screen.dart';  // 3번째 탭: 코드 조립 퀴즈 화면 연결
-import 'screens/creator_screen.dart'; // ⚡ 4번째 탭: 문제 출제 화면 연결 완료!
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'firebase_options.dart';
+import 'screens/home_screen.dart';
+import 'screens/login_screen.dart';
+import 'screens/quiz_screen.dart';
+import 'screens/creator_screen.dart'; // ⚡ 카드뉴스형 문제 풀기 클래스 (기존 파일명 유지)
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const CodeLingoApp());
 }
 
@@ -17,17 +22,13 @@ class CodeLingoApp extends StatelessWidget {
       title: 'CODE_FLOW',
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: const Color(0xFF0B1326), 
-        primaryColor: const Color(0xFF6FFF92), 
+        scaffoldBackgroundColor: const Color(0xFF0B1326),
+        primaryColor: const Color(0xFF6FFF92),
         colorScheme: const ColorScheme.dark(
           primary: Color(0xFF6FFF92),
-          secondary: Color(0xFFFFB690), 
+          secondary: Color(0xFFFFB690),
           surface: Color(0xFF171F33),
           error: Color(0xFFFFB4AB),
-        ),
-        textTheme: const TextTheme(
-          displayLarge: TextStyle(fontFamily: 'Montserrat', fontWeight: FontWeight.bold),
-          bodyMedium: TextStyle(fontFamily: 'Inter', color: Color(0xFFDBE2FD)),
         ),
       ),
       home: const MainNavigationScreen(),
@@ -44,152 +45,166 @@ class MainNavigationScreen extends StatefulWidget {
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _selectedIndex = 0;
-  bool _isLoggedIn = false; // 🔒 전역 보안 세션 상태 변수
 
-  // 로그인 성공 시 세션을 켜고 홈(0번 탭)으로 이동시키는 콜백 함수
-  void _onLoginSuccess() {
-    setState(() {
-      _isLoggedIn = true;
-      _selectedIndex = 0; 
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        backgroundColor: Color(0xFF171F33),
-        content: Text('🛡️ 안전한 보안 세션이 수립되었습니다. 전역 권한이 활성화됩니다.', style: TextStyle(color: Color(0xFF6FFF92))),
-      ),
-    );
-  }
-
+  // 🛠️ 개선: 권한 체크 가드를 완전히 제거하여 어떤 탭이든 자유롭게 즉시 이동합니다.
   void _onItemTapped(int index) {
-    // 🔒 보안 라우트 가드: 로그인하지 않은 상태에서 4번째 탭(문제출제)을 누르면 차단
-    if (index == 3 && !_isLoggedIn) {
-      _showSecurityAlert();
-      return;
-    }
     setState(() {
       _selectedIndex = index;
     });
-  }
-
-  void _showSecurityAlert() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF171F33),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-        title: const Row(
-          children: [
-            Icon(Icons.lock, color: Color(0xFFFFB4AB), size: 20),
-            SizedBox(width: 8),
-            Text('접근 권한 제한', style: TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFFFFB4AB))),
-          ],
-        ),
-        content: const Text('보안 위협 방지를 위해 문제 출제 기능은 로그인 및 출제자 권한 승인 후 이용 가능합니다.', style: TextStyle(fontFamily: 'Inter', fontSize: 14)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('확인', style: TextStyle(color: Color(0xFF6FFF92), fontFamily: 'Inter', fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     final bool isDesktop = MediaQuery.of(context).size.width >= 768;
 
-    // 🔄 모든 화면들을 제자리에 빌드 매핑 완료!
-    final List<Widget> screens = [
-      const HomeScreen(), 
-      LoginScreen(onLoginSuccess: _onLoginSuccess, isLoggedIn: _isLoggedIn),
-      const QuizScreen(), 
-      const CreatorScreen(), // ⚡ 네 번째 칸에 임시 텍스트 대신 진짜 출제 화면 위젯 도킹!
-    ];
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        final bool isLoggedIn = snapshot.hasData && snapshot.data != null;
 
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF060D20),
-        elevation: 0,
-        shape: const Border(bottom: BorderSide(color: Colors.white10, width: 1)),
-        title: Row(
-          children: [
-            Container(
-              width: 10,
-              height: 10,
-              decoration: const BoxDecoration(color: Color(0xFF6FFF92), shape: BoxShape.circle),
+        // 🛠️ 개선: 과거 로그아웃 시 홈으로 강제 튕겨내던 감시 루프(addPostFrameCallback)를 제거했습니다.
+        final List<Widget> screens = [
+          const HomeScreen(),
+          LoginScreen(isLoggedIn: isLoggedIn),
+          const QuizScreen(),
+          const CreatorScreen(),
+        ];
+
+        return Scaffold(
+          appBar: AppBar(
+            backgroundColor: const Color(0xFF060D20),
+            elevation: 0,
+            shape: const Border(
+              bottom: BorderSide(color: Colors.white10, width: 1),
             ),
-            const SizedBox(width: 12),
-            const Text(
-              'CODE_FLOW',
-              style: TextStyle(fontFamily: 'Montserrat', fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF6FFF92), letterSpacing: 1.0),
-            ),
-          ],
-        ),
-        actions: [
-          // 우측 상단 세션 마스터 제어 자물쇠 스위치
-          IconButton(
-            icon: Icon(_isLoggedIn ? Icons.lock_open_rounded : Icons.lock_rounded),
-            color: _isLoggedIn ? const Color(0xFF6FFF92) : const Color(0xFFFFB4AB),
-            onPressed: () {
-              setState(() {
-                _isLoggedIn = !_isLoggedIn;
-                if (!_isLoggedIn && _selectedIndex == 3) _selectedIndex = 0;
-              });
-            },
-          ),
-          const SizedBox(width: 16),
-        ],
-      ),
-      body: Row(
-        children: [
-          if (isDesktop)
-            NavigationRail(
-              backgroundColor: const Color(0xFF060D20),
-              selectedIndex: _selectedIndex,
-              onDestinationSelected: _onItemTapped,
-              labelType: NavigationRailLabelType.all,
-              selectedLabelTextStyle: const TextStyle(color: Color(0xFF6FFF92), fontSize: 11, fontFamily: 'Inter', fontWeight: FontWeight.bold),
-              unselectedLabelTextStyle: const TextStyle(color: Colors.grey, fontSize: 11, fontFamily: 'Inter'),
-              selectedIconTheme: const IconThemeData(color: Color(0xFF060D20)),
-              unselectedIconTheme: const IconThemeData(color: Colors.grey),
-              indicatorColor: const Color(0xFF6FFF92),
-              destinations: const [
-                NavigationRailDestination(icon: Icon(Icons.home_filled), label: Text('홈')),
-                NavigationRailDestination(icon: Icon(Icons.person_pin_rounded), label: Text('로그인')),
-                NavigationRailDestination(icon: Icon(Icons.extension_rounded), label: Text('퀴즈풀기')),
-                NavigationRailDestination(icon: Icon(Icons.add_moderator_rounded), label: Text('문제출제')),
+            title: Row(
+              children: [
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF6FFF92),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Text(
+                  'CODE_FLOW',
+                  style: TextStyle(
+                    fontFamily: 'Montserrat',
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF6FFF92),
+                    letterSpacing: 1.0,
+                  ),
+                ),
               ],
             ),
-          Expanded(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 250),
-              child: screens[_selectedIndex],
-            ),
-          ),
-        ],
-      ),
-      bottomNavigationBar: !isDesktop
-          ? Container(
-              decoration: const BoxDecoration(border: Border(top: BorderSide(color: Colors.white10, width: 1))),
-              child: BottomNavigationBar(
-                type: BottomNavigationBarType.fixed,
-                backgroundColor: const Color(0xFF060D20),
-                currentIndex: _selectedIndex,
-                onTap: _onItemTapped,
-                selectedItemColor: const Color(0xFF6FFF92),
-                unselectedItemColor: Colors.grey,
-                selectedLabelStyle: const TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.bold),
-                unselectedLabelStyle: const TextStyle(fontFamily: 'Inter', fontSize: 10),
-                items: const [
-                  BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: '홈'),
-                  BottomNavigationBarItem(icon: Icon(Icons.person_pin_rounded), label: '로그인'),
-                  BottomNavigationBarItem(icon: Icon(Icons.extension_rounded), label: '퀴즈풀기'),
-                  BottomNavigationBarItem(icon: Icon(Icons.add_moderator_rounded), label: '문제출제'),
-                ],
+            actions: [
+              IconButton(
+                icon: Icon(
+                  isLoggedIn ? Icons.lock_open_rounded : Icons.lock_rounded,
+                ),
+                color: isLoggedIn
+                    ? const Color(0xFF6FFF92)
+                    : const Color(0xFFFFB4AB),
+                onPressed: () async {
+                  if (isLoggedIn) {
+                    await FirebaseAuth.instance.signOut();
+                  }
+                },
               ),
-            )
-          : null,
+              const SizedBox(width: 16),
+            ],
+          ),
+          body: Row(
+            children: [
+              if (isDesktop)
+                NavigationRail(
+                  backgroundColor: const Color(0xFF060D20),
+                  selectedIndex: _selectedIndex,
+                  onDestinationSelected: _onItemTapped,
+                  labelType: NavigationRailLabelType.all,
+                  selectedLabelTextStyle: const TextStyle(
+                    color: Color(0xFF6FFF92),
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  unselectedLabelTextStyle: const TextStyle(
+                    color: Colors.grey,
+                    fontSize: 11,
+                  ),
+                  selectedIconTheme: const IconThemeData(
+                    color: Color(0xFF060D20),
+                  ),
+                  unselectedIconTheme: const IconThemeData(color: Colors.grey),
+                  indicatorColor: const Color(0xFF6FFF92),
+                  // 🛠️ 이름 및 아이콘 쇄신: 4번째 목적지를 '카드뉴스 풀기'와 전용 그래픽 아이콘으로 개편
+                  destinations: const [
+                    NavigationRailDestination(
+                      icon: Icon(Icons.home_filled),
+                      label: Text('홈'),
+                    ),
+                    NavigationRailDestination(
+                      icon: Icon(Icons.person_pin_rounded),
+                      label: Text('로그인'),
+                    ),
+                    NavigationRailDestination(
+                      icon: Icon(Icons.extension_rounded),
+                      label: Text('퀴즈풀기'),
+                    ),
+                    NavigationRailDestination(
+                      icon: Icon(Icons.view_carousel_rounded),
+                      label: Text('카드뉴스 풀기'),
+                    ),
+                  ],
+                ),
+              Expanded(
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 250),
+                  child: screens[_selectedIndex],
+                ),
+              ),
+            ],
+          ),
+          bottomNavigationBar: !isDesktop
+              ? Container(
+                  decoration: const BoxDecoration(
+                    border: Border(
+                      top: BorderSide(color: Colors.white10, width: 1),
+                    ),
+                  ),
+                  child: BottomNavigationBar(
+                    type: BottomNavigationBarType.fixed,
+                    backgroundColor: const Color(0xFF060D20),
+                    currentIndex: _selectedIndex,
+                    onTap: _onItemTapped,
+                    selectedItemColor: const Color(0xFF6FFF92),
+                    unselectedItemColor: Colors.grey,
+                    // 🛠️ 모바일 하단바도 동일하게 카드뉴스 인프라 명세 적용
+                    items: const [
+                      BottomNavigationBarItem(
+                        icon: Icon(Icons.home_filled),
+                        label: '홈',
+                      ),
+                      BottomNavigationBarItem(
+                        icon: Icon(Icons.person_pin_rounded),
+                        label: '로그인',
+                      ),
+                      BottomNavigationBarItem(
+                        icon: Icon(Icons.extension_rounded),
+                        label: '퀴즈풀기',
+                      ),
+                      BottomNavigationBarItem(
+                        icon: Icon(Icons.view_carousel_rounded),
+                        label: '카드뉴스 풀기',
+                      ),
+                    ],
+                  ),
+                )
+              : null,
+        );
+      },
     );
   }
 }

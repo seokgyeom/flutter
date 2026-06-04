@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1837139291",
+    "project_id": "code-flow-app-e41e3",
+    "storage_bucket": "code-flow-app-e41e3.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1837139291:android:c07fd4b9099b046163c67e",
+        "android_client_info": {
+          "package_name": "com.example.circuit_flow"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA_gNQlOWMwu2lcgfYepF1ElKBS8gdFa8s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
